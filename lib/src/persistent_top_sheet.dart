@@ -2,7 +2,7 @@ library persistent_top_sheet;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
-import 'package:persistent_top_sheet/src/persistent_top_sheet_controller.dart';
+import 'persistent_top_sheet_controller.dart';
 
 /// A widget that displays a persistent top sheet.
 class PersistentTopSheet extends StatefulWidget {
@@ -79,6 +79,11 @@ class _PersistentTopSheetState extends State<PersistentTopSheet>
     _animController.addListener(() => _setHeight(_anim.value));
 
     _controller.addListener(_onControllerChanged);
+
+    // Sync the initial controller height if provided
+    if (_controller.currentHeight != _crtHeight) {
+      _controller.setHeight(_crtHeight);
+    }
   }
 
   @override
@@ -93,6 +98,8 @@ class _PersistentTopSheetState extends State<PersistentTopSheet>
     setState(() {
       _crtHeight = newHeight.clamp(widget.minHeight, widget.maxHeight);
     });
+    _controller
+        .setHeight(_crtHeight); // Update the controller with the new height
     widget.onHeightChanged?.call(_crtHeight);
   }
 
@@ -102,6 +109,12 @@ class _PersistentTopSheetState extends State<PersistentTopSheet>
     } else {
       _close();
     }
+
+    // Update the height if it was explicitly set through the controller
+    if (_controller.currentHeight != _crtHeight) {
+      _setHeight(_controller.currentHeight);
+    }
+
     widget.onStateChanged?.call(_controller.isOpen);
   }
 
@@ -128,15 +141,15 @@ class _PersistentTopSheetState extends State<PersistentTopSheet>
   }
 
   Future<void> _open({Offset? pixelsPerSecond}) async {
-    _controller.open();
     await _runAnimation(
         widget.maxHeight, pixelsPerSecond ?? Offset(0, widget.animationSpeed));
+    _controller.open();
   }
 
   Future<void> _close({Offset? pixelsPerSecond}) async {
-    _controller.close();
     await _runAnimation(
         widget.minHeight, pixelsPerSecond ?? Offset(0, -widget.animationSpeed));
+    _controller.close();
   }
 
   @override
@@ -163,7 +176,7 @@ class _PersistentTopSheetState extends State<PersistentTopSheet>
                 _crtHeight > widget.maxHeight / 2 ? _open() : _close();
               }
             },
-            onVerticalDragUpdate: (DragUpdateDetails details) =>
+            onVerticalDragUpdate: (details) =>
                 _setHeight(_crtHeight + details.delta.dy),
             child: widget.handleBuilder?.call(_crtHeight) ?? const SizedBox(),
           )
